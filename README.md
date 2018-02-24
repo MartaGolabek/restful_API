@@ -7,3 +7,5 @@ This API enables CRUD operations on a collection of programming languages names
 * Marshmallow - an object serialization/deserialization library
 * Flask framework - Python microframework
 * Boostrap
+
+[!Screenshot of API][https://github.com/MartaGolabek/restful_API/edit/master/screen_api.png]
