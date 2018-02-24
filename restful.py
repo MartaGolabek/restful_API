@@ -1,39 +1,86 @@
-from flask import Flask, jsonify, request #import objects from the Flask model
+from flask import Flask, jsonify, request, render_template #import objects from the Flask model
+from flask_sqlalchemy import SQLAlchemy
+from flask_marshmallow import Marshmallow
+import os
 
 app = Flask(__name__) # define app using Flask
+basedir = os.path.abspath(os.path.dirname(__file__))
+app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///' + os.path.join(basedir, 'languages.db')
+db = SQLAlchemy(app)
+ma = Marshmallow(app)
 
 languages = [{'name': 'JavaScript'}, {'name': 'Python'}, {'name': 'Ruby'}]
 
+
+class Language(db.Model):
+    name = db.Column(db.String(80), primary_key=True)
+
+    def __init__(self, name):
+        self.name = name
+
+
+class LanguageSchema(ma.Schema):
+    class Meta:
+        # Fields to expose
+        fields = ['name']
+
+
+language_schema = LanguageSchema()
+languages_schema = LanguageSchema(many=True)
+
+
 @app.route('/', methods=['GET'])
-def test():
-    return jsonify({'message': 'It works!'})
+def home():
+    return render_template('home.html')
+
 
 @app.route('/lang', methods=['GET'])
-def returnAll():
-    return jsonify({'languages': languages})
+def get_all():
+    all_languages = Language.query.all()
+    return languages_schema.jsonify(all_languages)
+    # return jsonify({'languages': languages})
+
 
 @app.route('/lang/<string:name>', methods=['GET'])
-def returnOne(name):
-    langs = [language for language in languages if language['name'] == name]
-    return jsonify({'language': langs[0]})
+def get_one(name):
+    language = Language.query.get(name)
+    return language_schema.jsonify(language)
+    # langs = [language for language in languages if language['name'] == name]
+    # return jsonify({'language': langs[0]})
+
 
 @app.route('/lang', methods=['POST'])
-def addOne():
-    language = {'name' : request.json['name']}
-    languages.append(language)
-    return jsonify({'languages': languages})
+def add_one():
+    # retrieve a name from a request body
+    name = request.json['name']
+    new_language = Language(name)
+    db.session.add(new_language)
+    db.session.commit()
+    return language_schema.jsonify(new_language)
+
 
 @app.route('/lang/<string:name>', methods=['PUT'])
-def editOne(name):
-    langs = [language for language in languages if language['name'] == name]
-    langs[0]['name'] = request.json['name']
-    return jsonify({'language': langs[0]})
+def edit_one(name):
+    new_language = Language.query.get(name)
+    name = request.json['name']
+    new_language.name = name
+    db.session.commit()
+    return language_schema.jsonify(new_language)
+    # langs = [language for language in languages if language['name'] == name]
+    # langs[0]['name'] = request.json['name']
+    # return jsonify({'language': langs[0]})
 
 
 @app.route('/lang/<string:name>', methods=['DELETE'])
-def removeOne(name):
-    lang = [language for language in languages if language['name'] == name]
-    languages.remove(lang[0])
-    return jsonify({'languages': languages})
+def remove_one(name):
+    remove_language = Language.query.get(name)
+    db.session.delete(remove_language)
+    db.session.commit()
+    return language_schema.jsonify(remove_language)
+    # lang = [language for language in languages if language['name'] == name]
+    # languages.remove(lang[0])
+    # return jsonify({'languages': languages})
+
+
 if __name__ == '__main__':
     app.run(debug=True, port=8080) #run app on port 8080 in debug mode
